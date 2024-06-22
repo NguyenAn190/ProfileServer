@@ -1,0 +1,35 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int           @id @default(autoincrement())
+  name        String
+  phone       String        @unique
+  email       String        @unique
+  birthday    DateTime?      
+  gender      Boolean?       @default(true)
+  avatar      String? 
+  password    String
+  dateCreated DateTime      @default(now())
+  isDelete    Boolean       @default(false)
+  isActive    Boolean       @default(false)
+  role        String        @default("USER")
+  authProvider String       @default("ACCOUNT")
+  loginHistories  Login_History[] 
+}
+
+model Login_History {
+  id           Int       @id @default(autoincrement())
+  userId       Int       
+  user         User      @relation(fields: [userId], references: [id])
+  loginTime    DateTime  @default(now())
+  loginSuccess Boolean   @default(false)
+  ipAddress    String? 
+}
