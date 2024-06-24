@@ -8,28 +8,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id          Int           @id @default(autoincrement())
-  name        String
-  phone       String        @unique
-  email       String        @unique
-  birthday    DateTime?      
-  gender      Boolean?       @default(true)
-  avatar      String? 
-  password    String
-  dateCreated DateTime      @default(now())
-  isDelete    Boolean       @default(false)
-  isActive    Boolean       @default(false)
-  role        String        @default("USER")
-  authProvider String       @default("ACCOUNT")
-  loginHistories  Login_History[] 
-}
+  model User {
+    id              String          @id 
+    name            String
+    phone           String          @unique
+    email           String          @unique
+    birthday        DateTime?      
+    gender          Boolean?        @default(true)
+    avatar          String? 
+    password        String
+    dateCreated     DateTime        @default(now())
+    isDelete        Boolean         @default(false)
+    isActive        Boolean         @default(false)
+    role            String          @default("USER")
+    authProvider    String          @default("ACCOUNT")
+    loginHistories  Login_History[]
+    tokens          Token[]         @relation("UserTokens")
+  }
 
-model Login_History {
-  id           Int       @id @default(autoincrement())
-  userId       Int       
-  user         User      @relation(fields: [userId], references: [id])
-  loginTime    DateTime  @default(now())
-  loginSuccess Boolean   @default(false)
-  ipAddress    String? 
-}
+  model Login_History {
+    id           Int       @id @default(autoincrement())
+    userId       String       
+    user         User      @relation(fields: [userId], references: [id])
+    loginTime    DateTime  @default(now())
+    loginSuccess Boolean   @default(false)
+    ipAddress    String? 
+  }
+
+  model Token {
+    id            Int       @id @default(autoincrement())
+    token         String    @unique
+    userId        String
+    user          User      @relation(fields: [userId], references: [id], name: "UserTokens")
+    createdAt     DateTime  @default(now())
+    expiresAt     DateTime
+    isRevoked     Boolean   @default(false)
+  }

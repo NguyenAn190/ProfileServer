@@ -1,6 +1,6 @@
 -- CreateTable
 CREATE TABLE "User" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
     "phone" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -18,11 +18,22 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "Login_History" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "userId" INTEGER NOT NULL,
+    "userId" TEXT NOT NULL,
     "loginTime" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "loginSuccess" BOOLEAN NOT NULL DEFAULT false,
     "ipAddress" TEXT,
     CONSTRAINT "Login_History_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Token" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "token" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" DATETIME NOT NULL,
+    "isRevoked" BOOLEAN NOT NULL DEFAULT false,
+    CONSTRAINT "Token_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateIndex
@@ -30,3 +41,6 @@ CREATE UNIQUE INDEX "User_phone_key" ON "User"("phone");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Token_token_key" ON "Token"("token");

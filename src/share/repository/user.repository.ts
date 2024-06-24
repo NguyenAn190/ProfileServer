@@ -1,4 +1,4 @@
-import {Injectable} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from './../../prisma/prisma.service';
 import { User } from '@prisma/client';
 
@@ -10,7 +10,7 @@ export class UserRepository {
     return await this.prismaService.user.findMany();
   }
 
-  async findByID(id: number) {
+  async findByID(id: string) {
     return await this.prismaService.user.findUnique({
       where: {
         id: id,
@@ -27,9 +27,9 @@ export class UserRepository {
   }
 
   async create(user: any): Promise<void> {
-      await this.prismaService.user.create({
-        data: user,
-      });
+    await this.prismaService.user.create({
+      data: user,
+    });
   }
 
   async update(user: User) {
@@ -41,7 +41,7 @@ export class UserRepository {
     });
   }
 
-  async delete(id: number) {
+  async delete(id: string) {
     return await this.prismaService.user.delete({
       where: {
         id: id,
@@ -50,13 +50,19 @@ export class UserRepository {
   }
 
   async findByEmailOrPhone(email: string, phone: string): Promise<any> {
-    return this.prismaService.user.findFirst({
+    return await this.prismaService.user.findFirst({
       where: {
-        OR: [
-          { email: email },
-          { phone: phone },
-        ],
+        OR: [{ email: email }, { phone: phone }],
       },
     });
+  }
+
+  async getUserWithMaxId() {
+    const user = await this.prismaService.user.findFirst({
+      orderBy: {
+        id: 'desc',
+      },
+    });
+    return user ? String(user.id) : '';
   }
 }
