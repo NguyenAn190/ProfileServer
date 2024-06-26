@@ -26,4 +26,11 @@ export class TokenRepository {
       data: token,
     });
   }
+
+  async findLatestTokenByUserId(userId: string) {
+    return await this.prismaService.token.findFirst({
+      where: { userId: userId, isRevoked: false },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

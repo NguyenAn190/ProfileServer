@@ -21,7 +21,7 @@ export class UserRepository {
   async findByEmail(email: string) {
     return await this.prismaService.user.findUnique({
       where: {
-        email: email,
+        email: email.toLowerCase(),
       },
     });
   }
@@ -65,4 +65,5 @@ export class UserRepository {
     });
     return user ? String(user.id) : '';
   }
+
 }

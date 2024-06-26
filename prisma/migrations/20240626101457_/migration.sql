@@ -2,7 +2,7 @@
 CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
-    "phone" TEXT NOT NULL,
+    "phone" TEXT,
     "email" TEXT NOT NULL,
     "birthday" DATETIME,
     "gender" BOOLEAN DEFAULT true,

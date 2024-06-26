@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { RegisterDTO } from 'src/modules/user/auth/dto/register.dto';
@@ -35,32 +37,32 @@ export class AuthService {
     try {
       const tokenGenerate = this.randomTokenService.generateToken(30);
       const maxIdUser = await this.userRepository.getUserWithMaxId();
-      const idUserGenerate = this.userIdService.generateUserId(maxIdUser.toString());
-      
-      const existingUser = await this.userRepository.findByEmailOrPhone(
-        registerDTO.email,
-        registerDTO.phone,
+      const idUserGenerate = this.userIdService.generateUserId(
+        maxIdUser.toString(),
       );
-  
+
+      const existingUser = await this.userRepository.findByEmail(
+        registerDTO.email,
+      );
+
       if (existingUser) {
         throw new ConflictException('Tài khoản đã tồn tại!');
       }
-  
+
       const hashedPassword = await this.passwordUtils.hashPassword(
         registerDTO.password,
       );
-  
+
       const createdAt = new Date();
       const expiresAt = new Date(createdAt.getTime() + 15 * 60 * 1000);
-  
+
       const newUser = {
         id: idUserGenerate,
-        name: registerDTO.name,
-        email: registerDTO.email,
+        name: registerDTO.fullname,
+        email: registerDTO.email.toLowerCase(),
         password: hashedPassword,
-        phone: registerDTO.phone,
       };
-  
+
       const newToken = {
         token: tokenGenerate,
         userId: idUserGenerate,
@@ -68,10 +70,10 @@ export class AuthService {
         expiresAt: expiresAt,
         isRevoked: false,
       };
-  
+
       // Tạo người dùng và token đồng thời
+      await this.userRepository.create(newUser);
       await Promise.all([
-        this.userRepository.create(newUser),
         this.tokenRepository.create(newToken),
         this.mailService.sendUserConfirmation(
           registerDTO.email,
@@ -79,7 +81,7 @@ export class AuthService {
           idUserGenerate,
         ),
       ]);
-  
+
       return new ResponseObject(201, 'Tạo tài khoản thành công!', null);
     } catch (error) {
       if (error instanceof ConflictException) {
@@ -89,57 +91,75 @@ export class AuthService {
       throw new InternalServerErrorException('Đăng ký tài khoản thất bại');
     }
   }
-  
 
   // service xử lí đăng nhập
-  async login(loginDTO: LoginDTO, userIp: string): Promise<{ access_token: string }> {
-    const user = await this.userRepository.findByEmail(loginDTO.email);
+  async login(
+    loginDTO: LoginDTO,
+    userIp: string,
+  ): Promise<{ access_token: string }> {
+    const user = await this.userRepository.findByEmail(
+      loginDTO.email.toLowerCase(),
+    );
     if (user === null || user === undefined) {
       throw new BadRequestException('Tài khoản hoặc mật khẩu không hợp lệ!');
     } else {
-      if (!user || !(await this.passwordUtils.comparePasswords(loginDTO.password, user.password))) {
+      if (
+        !user ||
+        !(await this.passwordUtils.comparePasswords(
+          loginDTO.password,
+          user.password,
+        ))
+      ) {
         const historyLogin = {
-          userId: user?.id, 
+          userId: user?.id,
           loginSuccess: false,
-          ipAddress: userIp
+          ipAddress: userIp,
         };
-    
+
         this.loginHistoryRepository.create(historyLogin);
-    
-        if (!user) {
-          throw new BadRequestException('Tài khoản hoặc mật khẩu không hợp lệ!');
-        }
-    
+        console.table(user)
         if (!user.isActive) {
           throw new UnauthorizedException('Tài khoản chưa được kích hoạt!');
         }
-    
-        throw new UnauthorizedException('Tài khoản hoặc mật khẩu không hợp lệ!');
+
+        if (!user) {
+          throw new BadRequestException(
+            'Tài khoản hoặc mật khẩu không hợp lệ!',
+          );
+        }
+
+        throw new UnauthorizedException(
+          'Tài khoản hoặc mật khẩu không hợp lệ!',
+        );
       }
-    
-      // Nếu user tồn tại và mật khẩu khớp
+
       const historyLogin = {
         userId: user.id,
         loginSuccess: true,
-        ipAddress: userIp
+        ipAddress: userIp,
       };
-    
+
       this.loginHistoryRepository.create(historyLogin);
-    
+
       const payload = { email: loginDTO.email };
       return {
         access_token: await this.jwtService.signAsync(payload),
       };
     }
   }
-  
-  
 
   async authentication(token: string, userId: string): Promise<void> {
     const tokenUser = await this.tokenRepository.findToken(token);
 
-    if (!tokenUser || Date.now() > new Date(tokenUser.expiresAt).getTime() || userId !== tokenUser.userId || token !== tokenUser.token) {
-      throw new UnauthorizedException('Xác thực thất bại vui lòng thử lại sau!');
+    if (
+      !tokenUser ||
+      Date.now() > new Date(tokenUser.expiresAt).getTime() ||
+      userId !== tokenUser.userId ||
+      token !== tokenUser.token
+    ) {
+      throw new UnauthorizedException(
+        'Xác thực thất bại vui lòng thử lại sau!',
+      );
     }
 
     const user = await this.userRepository.findByID(userId);
@@ -149,5 +169,94 @@ export class AuthService {
 
     user.isActive = true;
     await this.userRepository.update(user);
+  }
+
+  async sendEmailForgotPassword(email: string): Promise<void> {
+    const user = await this.userRepository.findByEmail(email.toLowerCase());
+    if (!user) {
+      throw new BadRequestException('Tài khoản không tồn tại!');
+    }
+
+    // Tìm token mới nhất cho user
+    const latestToken = await this.tokenRepository.findLatestTokenByUserId(
+      user.id,
+    );
+    const now = new Date();
+
+    if (
+      latestToken &&
+      now.getTime() - new Date(latestToken.createdAt).getTime() < 60 * 1000
+    ) {
+      throw new BadRequestException(
+        'Vui lòng đợi ít nhất 60s trước khi gửi gmail mới!  ',
+      );
+    }
+
+    try {
+      const tokenGenerate = this.randomTokenService.generateToken(30);
+
+      const createdAt = new Date();
+      const expiresAt = new Date(createdAt.getTime() + 15 * 60 * 1000);
+
+      const newToken = {
+        token: tokenGenerate,
+        userId: user.id,
+        createdAt: createdAt,
+        expiresAt: expiresAt,
+        isRevoked: false,
+      };
+
+      // Tạo người dùng và token đồng thời
+      await Promise.all([
+        this.tokenRepository.create(newToken),
+        this.mailService.sendEmailForgotPassword(email, tokenGenerate, user.id),
+      ]);
+    } catch (err: any) {
+      console.error(err.message);
+      throw new HttpException('Lỗi hệ thống vui lòng thử lại sau', 500);
+    }
+  }
+
+  async checkEmailForgotPassword(token: string, userId: string): Promise<void> {
+    try {
+      const tokenUser = await this.tokenRepository.findToken(token);
+      if (!tokenUser) {
+        throw new NotFoundException('Xác thực thất bại vui lòng thử lại sau!!');
+      }
+      if (
+        !tokenUser ||
+        Date.now() > new Date(tokenUser.expiresAt).getTime() ||
+        userId !== tokenUser.userId ||
+        token !== tokenUser.token
+      ) {
+        throw new UnauthorizedException(
+          'Xác thực thất bại vui lòng thử lại sau!',
+        );
+      }
+      const user = await this.userRepository.findByID(userId);
+      if (!user) {
+        throw new UnauthorizedException(
+          'Xác thực thất bại vui lòng thử lại sau!!',
+        );
+      }
+    } catch (error: any) {
+      throw new HttpException('Xác thực thất bại!', 500);
+    }
+  }
+
+  async changePassword(userId: string, password: string): Promise<void> {
+    const user = await this.userRepository.findByID(userId);
+    if (!user) {
+      throw new UnauthorizedException(
+        'Xác thực thất bại vui lòng thử lại sau!',
+      );
+    }
+    try {
+      const hashedPassword = await this.passwordUtils.hashPassword(password);
+      user.password = hashedPassword;
+      await this.userRepository.update(user);
+    } catch (e) {
+      throw new HttpException('Xác thực thất bại!', 500);
+    }
   }
 }
