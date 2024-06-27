@@ -1,7 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { IsString, IsEmail, IsNotEmpty, MinLength, IsEnum, IsOptional, MaxLength, Matches } from 'class-validator';
-import { AuthProvider } from 'src/share/enum/auth.provider.enum';
-import { Role } from 'src/share/enum/role.enum';
+import { IsString, IsEmail, IsNotEmpty, MinLength} from 'class-validator';
 
 export class RegisterDTO {
   @IsString({ message: 'Tên phải là chuỗi ký tự' })

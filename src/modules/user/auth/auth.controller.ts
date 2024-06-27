@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { RegisterDTO } from 'src/modules/user/auth/dto/register.dto';
@@ -15,14 +16,16 @@ import { AuthService } from 'src/modules/user/auth/auth.service';
 import { ApiTags } from '@nestjs/swagger';
 import { ResponseObject } from 'src/share/global/response.object';
 import { LoginDTO } from 'src/modules/user/auth/dto/login.dto';
-import { AuthGuard } from 'src/modules/user/auth/auth.guard';
 import { Request } from 'express';
 import { ChangePasswordDTO } from 'src/modules/user/auth/dto/change-password.dto';
-
+import { AuthGuard } from '@nestjs/passport';
+import { JwtService } from '@nestjs/jwt';
 @ApiTags('users/auth')
 @Controller('api/v1/')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService,
+    private jwtService: JwtService
+  ) {}
 
   // kí tài khoản user
   @HttpCode(HttpStatus.CREATED)
@@ -42,17 +45,17 @@ export class AuthController {
     return this.authService.login(loginDTO, userIp);
   }
 
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard)
-  @Get('users/auth/profile/:id')
-  async profile(@Param() id: number): Promise<ResponseObject<any>> {
-    return new ResponseObject(HttpStatus.OK, 'User profile retrieved successfully', null);
-  }
+  // @HttpCode(HttpStatus.OK)
+  // @UseGuards(AuthGuard)
+  // @Get('users/auth/profile/:id')
+  // async profile(@Param() id: number): Promise<ResponseObject<any>> {
+  //   return new ResponseObject(HttpStatus.OK, 'User profile retrieved successfully', null);
+  // }
   
   @HttpCode(HttpStatus.OK)
-  @Get('users/auth/authentication/:token/:userId')
-  async authentication(@Param("token") token: string, @Param("userId") userId: string): Promise <ResponseObject<any>> {
-    await this.authService.authentication(token, userId);
+  @Get('users/auth/veryfyTokenActiveUser/:token/:userId')
+  async veryfyTokenActiveUser(@Param("token") token: string, @Param("userId") userId: string): Promise <ResponseObject<any>> {
+    await this.authService.veryfyTokenActiveUser(token, userId);
     return new ResponseObject(HttpStatus.OK, 'User authentication successfully', null);
   }
 
@@ -75,5 +78,19 @@ export class AuthController {
   async changePassword(@Body() changePasswordDTO: ChangePasswordDTO) {
     await this.authService.changePassword(changePasswordDTO.userId, changePasswordDTO.password);
     return new ResponseObject(HttpStatus.OK, 'Đổi mật khẩu thành công', null);    
+  }
+
+  @Get('users/auth/google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth(@Req() req) {}
+
+  @Get('users/auth/google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Req() req, @Res() res) {
+    const user = req.user;
+console.log(user)
+    const payload = { email: user};
+    const token = await this.jwtService.signAsync(payload);
+    res.redirect( process.env.DOMAIN_FONTEND + `?token=${token}`);
   }
 }

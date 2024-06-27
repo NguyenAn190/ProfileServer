@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 export class UserIdService {
   generateUserId(existingId?: string): string {
     if (!existingId) {
-      return 'User0000';
+      return 'USER0000';
     }
 
     const match = existingId.match(/(\d+)$/);
@@ -15,6 +15,6 @@ export class UserIdService {
     }
 
     // If the provided id doesn't match the expected pattern, return a default value
-    return 'User0000';
+    return 'USER0000';
   }
 }
