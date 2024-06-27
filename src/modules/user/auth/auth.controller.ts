@@ -91,6 +91,6 @@ export class AuthController {
 console.log(user)
     const payload = { email: user};
     const token = await this.jwtService.signAsync(payload);
-    res.redirect( process.env.DOMAIN_FONTEND + `?token=${token}`);
+    res.redirect( process.env.DOMAIN_FONTEND + `login-with-provider/?token=${token}`);
   }
 }
