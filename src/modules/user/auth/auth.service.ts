@@ -262,6 +262,7 @@ export class AuthService {
     const email = emails[0].value;
     const user = await this.userRepository.findByEmail(email.toLowerCase());
 
+    
     if (!user) {
       const maxIdUser = await this.userRepository.getUserWithMaxId();
       const idUserGenerate = this.userIdService.generateUserId(
@@ -271,7 +272,7 @@ export class AuthService {
         id: idUserGenerate,
         email: email.toLowerCase(),
         password: '$2b$10$z6V1Q9sJbCqI8k9eX6Z8rO0e9nJ7Vc7Ibq7x8YlYUvYs0n5jzLXK',
-        name: name,
+        name: name.familyName + " " + name.givenName,
       });
       return email.toLowerCase();
     } else {
