@@ -57,7 +57,6 @@ export class AuthService {
       const now = new Date();
       const expiresAt = new Date(now.setFullYear(now.getFullYear() + 2));
 
-
       const newUser = {
         id: idUserGenerate,
         name: registerDTO.fullname,
@@ -102,16 +101,16 @@ export class AuthService {
     const user = await this.userRepository.findByEmail(
       loginDTO.email.toLowerCase(),
     );
-  
+
     if (!user) {
       throw new BadRequestException('Tài khoản hoặc mật khẩu không hợp lệ!');
     }
-  
+
     const passwordMatch = await this.passwordUtils.comparePasswords(
       loginDTO.password,
       user.password,
     );
-  
+
     if (!passwordMatch) {
       const historyLogin = {
         userId: user.id,
@@ -121,7 +120,7 @@ export class AuthService {
       await this.loginHistoryRepository.create(historyLogin);
       throw new UnauthorizedException('Tài khoản hoặc mật khẩu không hợp lệ!');
     }
-  
+
     if (!user.isActive) {
       const historyLogin = {
         userId: user.id,
@@ -131,21 +130,20 @@ export class AuthService {
       await this.loginHistoryRepository.create(historyLogin);
       throw new UnauthorizedException('Tài khoản chưa được kích hoạt!');
     }
-  
+
     const historyLogin = {
       userId: user.id,
       loginSuccess: true,
       ipAddress: userIp,
     };
-  
+
     await this.loginHistoryRepository.create(historyLogin);
-  
+
     const payload = { email: loginDTO.email };
     return {
       access_token: await this.jwtService.signAsync(payload),
     };
   }
-  
 
   async veryfyTokenActiveUser(token: string, userId: string): Promise<void> {
     const tokenUser = await this.tokenRepository.findToken(token);
@@ -264,18 +262,20 @@ export class AuthService {
     const email = emails[0].value;
     const user = await this.userRepository.findByEmail(email.toLowerCase());
 
-    if(!user) {
-        await this.userRepository.create({
-          id: "USER0001",
-          email: email.toLowerCase(),
-          password: "$2b$10$z6V1Q9sJbCqI8k9eX6Z8rO0e9nJ7Vc7Ibq7x8YlYUvYs0n5jzLXK",
-          name: name,
-        })
-      
-        return email.toLowerCase() ;
-       
+    if (!user) {
+      const maxIdUser = await this.userRepository.getUserWithMaxId();
+      const idUserGenerate = this.userIdService.generateUserId(
+        maxIdUser.toString(),
+      );
+      await this.userRepository.create({
+        id: idUserGenerate,
+        email: email.toLowerCase(),
+        password: '$2b$10$z6V1Q9sJbCqI8k9eX6Z8rO0e9nJ7Vc7Ibq7x8YlYUvYs0n5jzLXK',
+        name: name,
+      });
+      return email.toLowerCase();
     } else {
-      return email.toLowerCase() ;
+      return email.toLowerCase();
     }
   }
 }
